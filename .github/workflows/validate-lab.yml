@@ -1,0 +1,38 @@
+name: Validate Web Scraping Lab
+on:
+  push:
+    branches: [patch-1]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install notebook dependencies
+        run: python -m pip install pandas requests beautifulsoup4 nbconvert ipykernel
+      - name: Execute complete notebook against Books to Scrape
+        run: jupyter nbconvert --to notebook --execute lab-web-scraping.ipynb --output lab-web-scraping-executed.ipynb --ExecutePreprocessor.timeout=600
+      - name: Show verified result count
+        run: |
+          python - <<'PY'
+          import pandas as pd
+          books = pd.read_csv('books_rating4_max20.csv', dtype={'UPC': str})
+          assert not books.empty
+          assert books['Rating'].ge(4).all()
+          assert books['Price (£)'].le(20).all()
+          assert books['UPC'].is_unique
+          print('Validated books:', len(books))
+          print(books.drop(columns='Description').head().to_string(index=False))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: executed-lab-and-data
+          path: |
+            lab-web-scraping-executed.ipynb
+            books_rating4_max20.csv
